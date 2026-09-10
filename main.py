@@ -7,20 +7,16 @@ from services import call_cpp_classifier, call_llama_model
 
 app = FastAPI(title="TPU Virtual Support API MVP")
 
-# Настраиваем CORS, чтобы React на localhost:3000 мог слать запросы к FastAPI
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # На хакатоне ставим звездочку для скорости сборки
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Инициализируем базу данных при старте
 init_db()
 
-
-# --- 1. ЭНДПОИНТ: АВТОРИЗАЦИЯ (/api/auth/login) ---
 @app.post("/api/auth/login")
 async def login(data: LoginRequest):
     conn = get_db_connection()
@@ -28,7 +24,6 @@ async def login(data: LoginRequest):
     conn.close()
 
     if not user:
-        # Хакатон-стайл: если пользователя нет, регистрируем его на лету как обычного юзера
         conn = get_db_connection()
         conn.execute("INSERT INTO users VALUES (?, 'user')", (data.email,))
         conn.commit()
@@ -46,7 +41,6 @@ async def login(data: LoginRequest):
     }
 
 
-# --- 2. ЭНДПОИНТ: ПАНЕЛЬ АДМИНИСТРАТОРА (/api/admin/tickets) ---
 @app.get("/api/admin/tickets")
 async def get_tickets():
     conn = get_db_connection()
@@ -55,28 +49,20 @@ async def get_tickets():
     return [dict(ticket) for ticket in tickets]
 
 
-# --- 3. СЕРДЦЕ БЭКЕНДА: ОРКЕСТРАТОР СТЕЙТ-МАШИНЫ И ЭНДПОИНТ ОТПРАВКИ СООБЩЕНИЯ ---
 @app.post("/api/chat/send")
 async def send_message(data: MessageRequest):
     conn = get_db_connection()
 
-    # Фоновое действие: Сохраняем сообщение пользователя в историю
     conn.execute("INSERT INTO messages (email, author, text) VALUES (?, 'user', ?)", (data.email, data.message))
     conn.commit()
 
-    # ШАГ 1: Передаем текст в C++ ядро для жесткой классификации
     cpp_res = call_cpp_classifier(data.message)
     category = cpp_res["category"]
 
-    # ШАГ 2: Ветвление логики (State Machine)
     if category != "unknown":
-        # === СЦЕНАРИЙ А: Категория успешно определена ===
-
-        # Достаем сухую инструкцию из Базы Знаний ТПУ
         kb_item = conn.execute("SELECT instruction FROM kb_articles WHERE category = ?", (category,)).fetchone()
         instruction = kb_item["instruction"] if kb_item else ""
 
-        # Автоматически формируем/обновляем КАРТОЧКУ ОБРАЩЕНИЯ для админа
         ticket = conn.execute("SELECT * FROM tickets WHERE email = ? AND category = ?",
                               (data.email, category)).fetchone()
         if not ticket:
@@ -87,12 +73,9 @@ async def send_message(data: MessageRequest):
                          (ticket["id"],))
         conn.commit()
 
-        # Собираем RAG-промпт для Llama
         system_prompt = f"Ты техподдержка ТПУ. Сформулируй вежливый ответ на основе контекста. КОНТЕКСТ: {instruction}"
 
     else:
-        # === СЦЕНАРИЙ Б: Информации мало (unknown) ===
-        # Проверяем, есть ли уже открытая карточка у юзера, требующая уточнения
         ticket = conn.execute("SELECT * FROM tickets WHERE email = ? AND status = 'Требуется уточнение'",
                               (data.email,)).fetchone()
         if not ticket:
@@ -102,15 +85,12 @@ async def send_message(data: MessageRequest):
 
         system_prompt = "Ты техподдержка ТПУ. Пользователь дал мало информации. Задай вежливый уточняющий вопрос."
 
-    # ШАГ 3: Запускаем генерацию ответа через Llama
     bot_reply = call_llama_model(system_prompt, data.message)
 
-    # Фоновое действие: Сохраняем ответ бота в историю сообщений SQLite
     conn.execute("INSERT INTO messages (email, author, text) VALUES (?, 'bot', ?)", (data.email, bot_reply))
     conn.commit()
     conn.close()
 
-    # Возвращаем JSON-ответ в React
     return {
         "author": "bot",
         "text": bot_reply,
@@ -118,7 +98,6 @@ async def send_message(data: MessageRequest):
     }
 
 
-# Вспомогательный эндпоинт для React, чтобы подтягивать историю чата
 @app.get("/api/chat/history")
 async def get_chat_history(email: str):
     conn = get_db_connection()
