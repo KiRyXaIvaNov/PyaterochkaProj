@@ -7,7 +7,6 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 try:
-    # Импортируем под оригинальным именем, которое зашито внутри бинарника
     import tpu_classifier
 
     CPP_MODULE_AVAILABLE = True
@@ -23,7 +22,6 @@ def call_cpp_classifier(user_text: str) -> dict:
             input_data = {"message": user_text}
             json_input = json.dumps(input_data)
 
-            # Вызываем функцию из модуля tpu_classifier
             json_output_str = tpu_classifier.classify_request(json_input)
 
             result = json.loads(json_output_str)
@@ -35,7 +33,6 @@ def call_cpp_classifier(user_text: str) -> dict:
             print(f"[C++ Runtime Error]: {e}")
             return {"category": "unknown", "confidence": 0}
     else:
-        # Питоновская заглушка (оставляем без изменений)
         text_lower = user_text.lower()
         if "вайфай" in text_lower or "wifi" in text_lower or "интернет" in text_lower:
             return {"category": "Wi-Fi", "confidence": 98}
@@ -47,11 +44,7 @@ def call_cpp_classifier(user_text: str) -> dict:
 
 
 def call_llama_model(system_prompt: str, user_message: str) -> str:
-    """
-    Пока оставляем заглушку для Llama, её мы подключим на следующем шаге.
-    """
     if "unknown" in system_prompt:
         return "Я получил ваше обращение, но мне не хватает конкретики. Уточните, пожалуйста, с каким именно сервисом ТПУ (Wi-Fi, VPN или почта) у вас возникла проблема?"
 
-    # Имитируем красивый ответ на основе контекста
     return f"[Ответ Llama на основе ТПУ-Контекста]: Здравствуйте! Мы зафиксировали проблему. Согласно инструкциям университета: Для корректной работы сервиса, пожалуйста, используйте единый пароль от Личного Кабинета ТПУ."

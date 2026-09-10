@@ -4,7 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import init_db, get_db_connection
 from schemas import LoginRequest, MessageRequest
 from services import call_cpp_classifier, call_llama_model
+import chromadb
 
+chroma_client = chromadb.PersistentClient(path="./database/chroma_db")
+kb_collection = chroma_client.get_or_create_collection(name="university_knowledge")
 app = FastAPI(title="TPU Virtual Support API MVP")
 
 app.add_middleware(
@@ -76,6 +79,14 @@ async def send_message(data: MessageRequest):
         system_prompt = f"Ты техподдержка ТПУ. Сформулируй вежливый ответ на основе контекста. КОНТЕКСТ: {instruction}"
 
     else:
+        rag_results = kb_collection.query(
+            query_texts=[data.message],
+            n_results=2
+        )
+
+        retrieved_docs = rag_results.get("documents", [[]])[0]
+        smart_context = "\n".join(retrieved_docs) if retrieved_docs else ""
+
         ticket = conn.execute("SELECT * FROM tickets WHERE email = ? AND status = 'Требуется уточнение'",
                               (data.email,)).fetchone()
         if not ticket:
@@ -83,7 +94,10 @@ async def send_message(data: MessageRequest):
                          (data.email,))
             conn.commit()
 
-        system_prompt = "Ты техподдержка ТПУ. Пользователь дал мало информации. Задай вежливый уточняющий вопрос."
+        if smart_context:
+            system_prompt = f"Ты техподдержка ТПУ. Классификатор не определил точную категорию, но вот что удалось найти в базе знаний по похожим запросам. Сделай ответ на основе этого контекста.\nКОНТЕКСТ:\n{smart_context}"
+        else:
+            system_prompt = "Ты техподдержка ТПУ. Пользователь задал вопрос, на который нет прямого ответа в базе. Задай вежливый уточняющий вопрос."
 
     bot_reply = call_llama_model(system_prompt, data.message)
 
