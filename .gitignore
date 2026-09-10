@@ -4,17 +4,32 @@
 *.user
 *.sln.docstates
 *.userosscache
+*.json
+*.txt
 
 # Базы данных просмотра кода VS
 *.db
 *.db-shm
 *.db-wal
 *.opendb
+*.sqlite
 
-# Папки сборки кода (появятся позже)
+# Папки сборки и бинарники C++
 x64/
 Debug/
 Release/
+*.dll
+*.so
+*.pyd
+*.lib
+*.exp
+*.pdb
+*.recipe
+*.log
+*.tlog
 
-# Тяжелые файлы нейросети Llama (для безопасности)
+# Библиотека pybind11
+**/include/pybind11/
+
+# Нейросети
 *.gguf

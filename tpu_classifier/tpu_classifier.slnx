@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="tpu_classifier/tpu_classifier.vcxproj" />
+  <Project Path="tpu_classifier/tpu_classifier.vcxproj" Id="6f55c9e8-7283-4fae-9903-fad91eea3751" />
 </Solution>
