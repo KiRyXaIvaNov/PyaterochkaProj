@@ -1,0 +1,20 @@
+# Временные файлы и кэш Visual Studio
+.vs/
+*.suo
+*.user
+*.sln.docstates
+*.userosscache
+
+# Базы данных просмотра кода VS
+*.db
+*.db-shm
+*.db-wal
+*.opendb
+
+# Папки сборки кода (появятся позже)
+x64/
+Debug/
+Release/
+
+# Тяжелые файлы нейросети Llama (для безопасности)
+*.gguf
