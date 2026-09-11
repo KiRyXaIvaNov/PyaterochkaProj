@@ -1,0 +1,57 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: tpu-helpchat-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  ollama-model:
+    image: ollama/ollama:latest
+    container_name: tpu-helpchat-ollama-model
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command: "ollama pull qwen2.5:7b"
+    restart: "no"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tpu-helpchat-backend
+    environment:
+      OLLAMA_URL: http://ollama:11434/api/generate
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./database:/app/database
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tpu-helpchat-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
