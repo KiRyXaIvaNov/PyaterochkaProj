@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+@theme {
+  --color-tpu-green: #008000;
+  --color-tpu-gray: #D3D3D3;
+  --color-tpu-white: #FFFFFF;
+}
